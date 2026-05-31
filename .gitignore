@@ -1,0 +1,11 @@
+.venv/
+.env
+data/raw/
+data/processed/
+results/
+.DS_Store
+__pycache__/
+*.pyc
+*.pt
+*.pkl
+*.npy
