@@ -1,0 +1,13 @@
+{
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+    "python.terminal.activateEnvironment": true,
+    "editor.fontSize": 13,
+    "editor.tabSize": 4,
+    "editor.formatOnSave": true,
+    "python.formatting.provider": "black",
+    "files.exclude": {
+        "**/__pycache__": true,
+        "**/*.pyc": true
+    },
+    "terminal.integrated.defaultProfile.windows": "Command Prompt"
+}

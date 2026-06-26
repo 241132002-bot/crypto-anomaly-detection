@@ -10,6 +10,7 @@ import numpy as np
 import joblib
 import pandas as pd
 from datetime import datetime
+from sklearn.preprocessing import StandardScaler
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -24,29 +25,33 @@ print("EARLY WARNING SYSTEM — Мониторинг на Ethereum адреси"
 print("=" * 60)
 
 # Зареждане на модела
-clf     = joblib.load('results/random_forest_model.pkl')
-scaler  = joblib.load('data/processed/scaler.pkl')
-f_names = joblib.load('data/processed/feature_names.pkl')
+clf = joblib.load('results/random_forest_model.pkl')
+
+# Зареждаме правилния скалер за 22 характеристики
+_df = pd.read_csv('data/raw/real_transactions.csv')
+_feat_cols = [c for c in _df.columns if c not in ['address', 'label']]
+_df[_feat_cols] = _df[_feat_cols].fillna(0)
+scaler = StandardScaler()
+scaler.fit(_df[_feat_cols].values)
+f_names = _feat_cols
 
 print(f"Модел зареден: Random Forest")
 print(f"Характеристики: {len(f_names)}")
 
-# ── Прагове за риск ───────────────────────────────────────────────────
 RISK_LOW    = 0.30
 RISK_MEDIUM = 0.60
 RISK_HIGH   = 0.80
 
 def risk_level(score):
     if score >= RISK_HIGH:
-        return "🔴 КРИТИЧЕН"
+        return "КРИТИЧЕН"
     elif score >= RISK_MEDIUM:
-        return "🟠 ВИСОК"
+        return "ВИСОК"
     elif score >= RISK_LOW:
-        return "🟡 СРЕДЕН"
+        return "СРЕДЕН"
     else:
-        return "🟢 НИСъК"
+        return "НИСbК"
 
-# ── API функции ───────────────────────────────────────────────────────
 def get_transactions(address, max_tx=200):
     params = {
         "chainid": 1, "module": "account", "action": "txlist",
@@ -122,50 +127,45 @@ def analyze_address(address):
 
     txs = get_transactions(address, 300)
     if not txs:
-        print("  ⚠️  Няма транзакции или адресът не е намерен")
+        print("  Няма транзакции или адресът не е намерен")
         return None
 
     print(f"  Намерени транзакции: {len(txs)}")
     feat = extract_features(address, txs)
     if not feat:
-        print("  ⚠️  Не могат да се извлекат характеристики")
+        print("  Не могат да се извлекат характеристики")
         return None
 
-    # Подреждане на характеристиките в правилния ред
     feat_vector = np.array([[feat.get(f, 0) for f in f_names]], dtype=np.float32)
     feat_scaled = scaler.transform(feat_vector)
 
-    # Прогноза
     risk_score = clf.predict_proba(feat_scaled)[0][1]
     prediction = clf.predict(feat_scaled)[0]
     level      = risk_level(risk_score)
 
-    print(f"\n  📊 РЕЗУЛТАТ:")
-    print(f"  Risk Score:  {risk_score:.4f} ({risk_score*100:.1f}%)")
-    print(f"  Ниво:        {level}")
-    print(f"  Класификация: {'⚠️  АНОМАЛИЯ' if prediction == 1 else '✅ НОРМАЛЕН'}")
-
-    print(f"\n  📈 КЛЮЧОВИ ХАРАКТЕРИСТИКИ:")
+    print(f"\n  РЕЗУЛТАТ:")
+    print(f"  Risk Score:   {risk_score:.4f} ({risk_score*100:.1f}%)")
+    print(f"  Ниво:         {level}")
+    print(f"  Класификация: {'АНОМАЛИЯ' if prediction == 1 else 'НОРМАЛЕН'}")
+    print(f"\n  КЛЮЧОВИ ХАРАКТЕРИСТИКИ:")
     print(f"  Брой транзакции:      {feat['tx_count']}")
     print(f"  Уникални контрагенти: {feat['unique_counterparts']}")
     print(f"  Общ обем (ETH):       {feat['total_value_eth']:.4f}")
-    print(f"  Макс транзакция:      {feat['max_value_eth']:.4f} ETH")
     print(f"  Дял договори:         {feat['contract_rate']*100:.1f}%")
     print(f"  Баланс:               {feat['balance_eth']:.4f} ETH")
     print(f"  Активност (дни):      {feat['activity_span_days']:.0f}")
 
     if risk_score >= RISK_MEDIUM:
-        print(f"\n  🚨 ПРЕДУПРЕЖДЕНИЕ:")
+        print(f"\n  ПРЕДУПРЕЖДЕНИЕ:")
         if feat['contract_rate'] > 0.7:
-            print(f"  - Висок дял на договорни взаимодействия ({feat['contract_rate']*100:.0f}%)")
+            print(f"  - Висок дял договорни взаимодействия ({feat['contract_rate']*100:.0f}%)")
         if feat['value_concentration'] > 0.8:
-            print(f"  - Концентрирани транзакции (value_concentration={feat['value_concentration']:.2f})")
+            print(f"  - Концентрирани транзакции ({feat['value_concentration']:.2f})")
         if feat['avg_interval_sec'] < 60:
-            print(f"  - Много кратки интервали между транзакции ({feat['avg_interval_sec']:.0f} сек)")
+            print(f"  - Кратки интервали ({feat['avg_interval_sec']:.0f} сек)")
         if feat['out_in_ratio'] > 10:
-            print(f"  - Нетипично висок out/in ratio ({feat['out_in_ratio']:.1f})")
+            print(f"  - Висок out/in ratio ({feat['out_in_ratio']:.1f})")
 
-    # Запазване на лог
     log_entry = {
         'timestamp': datetime.now().isoformat(),
         'address': address,
@@ -174,7 +174,6 @@ def analyze_address(address):
         'prediction': prediction,
         **feat
     }
-
     log_file = 'results/ews/monitoring_log.csv'
     log_df   = pd.DataFrame([log_entry])
     if os.path.exists(log_file):
@@ -184,18 +183,13 @@ def analyze_address(address):
 
     return risk_score
 
-# ── Демонстрация с тестови адреси ─────────────────────────────────────
 print("\nДЕМОНСТРАЦИЯ НА EARLY WARNING SYSTEM")
 print("="*60)
 
 TEST_ADDRESSES = [
-    # Известен Tornado Cash адрес (очакваме висок риск)
     ("0x722122dF12D4e14e13Ac3b6895a86e84145b6967", "Tornado Cash Router"),
-    # Binance борса (очакваме нисък риск)
     ("0x28C6c06298d514Db089934071355E5743bf21d60", "Binance Exchange"),
-    # Втори Tornado Cash
     ("0x910Cbd523D972eb0a6f4cAe4618aD62622b39DbF", "Tornado Cash 100 ETH"),
-    # Kraken борса
     ("0x2910543Af39abA0Cd09dBb2D50200b3E800A63D2", "Kraken Exchange"),
 ]
 
@@ -207,7 +201,6 @@ for address, label in TEST_ADDRESSES:
         results.append((label, address, score, risk_level(score)))
     time.sleep(0.5)
 
-# ── Обобщение ─────────────────────────────────────────────────────────
 print(f"\n{'='*60}")
 print("ОБОБЩЕНИЕ НА МОНИТОРИНГА")
 print(f"{'='*60}")
@@ -217,5 +210,4 @@ for label, addr, score, level in results:
     print(f"{label:<35} {score:>7.4f}  {level}")
 
 print(f"\nЛогът е запазен: results/ews/monitoring_log.csv")
-print("\n✅ Early Warning System демонстрацията е завършена!")
-print("\nЗа мониторинг на собствен адрес добави го в TEST_ADDRESSES")
+print("\nEarly Warning System демонстрацията е завършена!")

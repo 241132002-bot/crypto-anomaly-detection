@@ -1,0 +1,53 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "01 - Подготовка на данни",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/01_data_preparation.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "02 - Isolation Forest",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/02_isolation_forest.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "03 - Random Forest",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/03_random_forest.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "04 - GraphSAGE",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/04_graphsage.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "05 - Ансамблов модел",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/05_ensemble.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "06 - SHAP анализ",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/06_shap_analysis.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
